@@ -1,4 +1,6 @@
-export const f = () => 42;
+import { createFilter } from "./filter.js";
+
+// import cloneDeep from "lodash.clonedeep";
 
 /**
  * TODO:
@@ -19,42 +21,72 @@ export const f = () => 42;
  *
  */
 
-const combineSelectorSegments = (prefix, segment) => {
-  return (
-    segment.includes("&")
-      ? segment.replaceAll("&", prefix)
-      : `${prefix} ${segment}`
-  ).trim();
-};
+// const isIterable = (obj) => typeof obj?.[Symbol.iterator] === "function";
 
-const unique = (arr) => [...new Set(arr)];
-const removeExtraWhitespaces = (str) => str.trim().replaceAll(/\s\s+/g, " ");
+/********** HELPERS *********/
+const isPlainObject = (obj) => obj?.constructor === Object;
+const isEmptyObject = (obj) => Object.keys(obj).length === 0;
+const isFunction = (fnc) => fnc instanceof Function;
+const isEmpty = (obj) =>
+  obj === null ||
+  obj === undefined ||
+  (isPlainObject(obj) ? Object.keys(obj) : obj)?.length === 0;
 
-// ['div, .foo', 'img, > #bar'] => 'div img, div > #bar, .foo img, .foo > #bar'
-export const combineNestedSelectors = (selectors) => {
-  const ERROR_VALUE = null;
-  if (!selectors || !(selectors instanceof Array) || selectors.length === 0)
-    return ERROR_VALUE;
-  for (let i = 0; i < selectors.length; i++) {
-    if (typeof selectors[i] !== "string") return ERROR_VALUE;
+/********** TAGGED TEMPLATE MIXIN *********/
+const isTaggedTemplate = (...args) => {
+  if (!(args[0] instanceof Array)) return false;
+  if (args[0].length !== args.length) return false;
+
+  const strings = args[0];
+  for (let i = 0; i < strings.length; i++) {
+    if (typeof strings[i] !== "string") return false;
   }
-
-  if (selectors.length === 1) return removeExtraWhitespaces(selectors[0]);
-
-  const combined = selectors.reduce((result, selector) => {
-    const segments = selector.split(/(?<!\([^,]*),(?![^,]*\))/g);
-    if (result.length === 0) return segments;
-
-    return result.reduce((newResult, prefix) => {
-      segments.forEach((sgm) =>
-        newResult.push(combineSelectorSegments(prefix, sgm))
-      );
-      return newResult;
-    }, []);
-  }, []);
-  return unique(combined.map(removeExtraWhitespaces)).join(", ");
+  return true;
 };
 
+const taggedTemplateArgsToString = (...args) => {
+  if (typeof args[0] === "string") return args[0];
+
+  const strings = args[0];
+  const segments = [strings[0]];
+  for (let i = 1; i < args.length; i++) {
+    segments.push(`${args[i]}${strings[i]}`);
+  }
+  return segments.join("");
+};
+
+function withTaggedTemplate(fnc) {
+  return function (...args) {
+    if (isTaggedTemplate(...args))
+      return fnc(taggedTemplateArgsToString(...args));
+
+    return fnc(...args);
+  };
+}
+
+/************ FILTER ************/
+function isValidFilterArg(arg) {
+  return (
+    (typeof arg === "string" && arg.length > 0) ||
+    arg instanceof RegExp ||
+    arg instanceof Function ||
+    isPlainObject(arg)
+  );
+}
+
+export const filter = withTaggedTemplate((query) => {
+  if (!isValidFilterArg(query))
+    throw new SyntaxError(
+      `argument must be non empty string, RegExp or plain query object`
+    );
+
+  return createFilter(parseQuery(query));
+});
+
+// shortcut to use as inline tagged template:  f` div > #id { width: 100; }`
+export const f = filter;
+
+/************** STYLESHEETS FUNCTIONS ***********/
 // from here: https://github.com/ai/nanoid/blob/main/nanoid.js
 const nanoid = (t = 10) => {
   let e = "",
@@ -109,9 +141,12 @@ const _stylesheets = (styleSheets) => {
     sheets = [defaultStyleSheet];
   }
 
-  const _rules = (filter) => {
+  const _rules = (conditions) => {
     return sheets.reduce((rules, sheet) => {
-      return rules.concat(...sheet.rules);
+      if (conditions) {
+        return rules.concat([...sheet.cssRules].filter(f(conditions)));
+      }
+      return rules.concat(...sheet.cssRules);
     }, []);
   };
 
@@ -123,6 +158,28 @@ const _stylesheets = (styleSheets) => {
 _stylesheets.default = defaultStyleSheet;
 
 export const stylesheets = _stylesheets;
+export const rules = _stylesheets().rules;
+export const insert = insertRules;
+
+/************** INSERT **********/
+const insertRule = (textRule) => {
+  const last = defaultStyleSheet.length;
+  const index = defaultStyleSheet.insertRule(textRule, last);
+  return defaultStyleSheet.cssRules[index];
+};
+
+function insertRules(textRules) {
+  if (isEmpty(textRules)) return [];
+  // console.log("textRules:", textRules);
+  const ruleSet = stringify(parse(textRules));
+
+  return ruleSet.map(insertRule);
+}
+
+// rules.forEach(set(`width:...`))
+// f`...` && f`...`(rule)
+// filter(`...`)(rule)
+// set(`...`)(rule)
 
 /*****   PARSING STYLES AND RULES  *****/
 
@@ -207,6 +264,42 @@ const validPseudoClasses = [
   ":where",
 ];
 
+const unique = (arr) => [...new Set(arr)];
+const removeExtraWhitespaces = (str) => str.trim().replaceAll(/\s\s+/g, " ");
+
+const combineSelectorSegments = (prefix, segment) => {
+  return (
+    segment.includes("&")
+      ? segment.replaceAll("&", prefix)
+      : `${prefix} ${segment}`
+  ).trim();
+};
+
+// ['div, .foo', 'img, > #bar'] => 'div img, div > #bar, .foo img, .foo > #bar'
+export const combineNestedSelectors = (selectors) => {
+  const ERROR_VALUE = null;
+  if (!selectors || !(selectors instanceof Array) || selectors.length === 0)
+    return ERROR_VALUE;
+  for (let i = 0; i < selectors.length; i++) {
+    if (typeof selectors[i] !== "string") return ERROR_VALUE;
+  }
+
+  if (selectors.length === 1) return removeExtraWhitespaces(selectors[0]);
+
+  const combined = selectors.reduce((result, selector) => {
+    const segments = selector.split(/(?<!\([^,]*),(?![^,]*\))/g);
+    if (result.length === 0) return segments;
+
+    return result.reduce((newResult, prefix) => {
+      segments.forEach((sgm) =>
+        newResult.push(combineSelectorSegments(prefix, sgm))
+      );
+      return newResult;
+    }, []);
+  }, []);
+  return unique(combined.map(removeExtraWhitespaces)).join(", ");
+};
+
 const isValidSelector = (selector) => {
   if (!selector.includes(":") || /^\s*@/.test(selector)) return true;
 
@@ -225,11 +318,11 @@ const isAtRule = (selector) => selector?.startsWith("@");
 
 const removeComments = (str) =>
   str
-    .replaceAll(/\/\*.*?\*\//gs, "") // remove /* comment */
-    .replaceAll(/\/\/.*\n/g, ""); // remove // comment
+    .replace(/\/\*.*?\*\//gs, "") // remove /* comment */
+    .replace(/\/\/.*\n/g, ""); // remove // comment
 
 const removeConsecutiveWhitespaces = (text) =>
-  text.replaceAll(/\s+/g, " ").replaceAll(/ ,/g, ",");
+  text.replace(/\s+/g, " ").replaceAll(/ ,/g, ",");
 
 const parseProperty = (token) => {
   const match = token.match(/(?<key>[\w-]+)\s*:\s*(?<value>[^:]*)/);
@@ -246,23 +339,24 @@ const removeEmptyRules = (rules) => {
   });
 };
 
-const taggedTemplateArgsToString = (...args) => {
-  if (typeof args[0] === "string") return args[0];
+export function parse(...args) {
+  if (isPlainObject(args[0])) return args[0];
 
-  const strings = args[0];
-  const segments = [strings[0]];
-  for (let i = 1; i < args.length; i++) {
-    segments.push(`${args[i]}${strings[i]}`);
-  }
-  return segments.join("");
-};
+  if (typeof args[0] === "string" && args[0].length > 0)
+    return parseStyleRules(args[0]);
 
-export function parseStyleRules(...args) {
-  if (args.length === 0 || !args[0]) return {};
+  if (isTaggedTemplate(...args))
+    return parseStyleRules(taggedTemplateArgsToString(...args));
 
-  const text = removeConsecutiveWhitespaces(
-    removeComments(taggedTemplateArgsToString(...args))
-  );
+  throw new SyntaxError(`argument must be non empty string`);
+}
+
+function parseStyleRules(textStyleRules) {
+  // if (typeof args[0] !== "string" && !isTaggedTemplate(...args)) return null;
+  if (!textStyleRules || textStyleRules?.length === 0) return null;
+  // console.log(args);
+
+  const text = removeConsecutiveWhitespaces(removeComments(textStyleRules));
   const matches = [...text.matchAll(/(?<d>[{};]|$)/gs)];
   let index = -1;
   let depth = 0;
@@ -357,27 +451,66 @@ export function parseStyleRules(...args) {
   if (depth > 0) throw new SyntaxError(`Unmatched '{'`);
 
   removeEmptyRules(tree);
-  return tree;
+  return Object.keys(tree).length > 0 ? tree : null;
+}
+
+export function stringify(styleRules, indentation = 2) {
+  if (!isPlainObject(styleRules) || isEmptyObject(styleRules)) return [];
+
+  const delimiter = indentation > 0 ? "\n" : " ";
+  const indent = (depth) => " ".repeat(indentation * depth);
+
+  let isStylesOnly = true;
+  const _stringify = (rule, depth = 0) => {
+    isStylesOnly &= depth === 0;
+    const rules = Object.entries(rule).reduce((segments, [key, value]) => {
+      if (value instanceof Object) {
+        // console.log('Object:', key, value, depth)
+        segments.push(
+          [
+            `${indent(depth)}${key} {${delimiter}`,
+            _stringify(value, depth + 1),
+            `${indent(depth)}}${delimiter}`,
+          ].join("")
+        );
+        // console.log(segments[segments.length-1])
+        return segments;
+      }
+      // console.log("property:", key, value, depth);
+      segments.push(`${indent(depth)}${key}: ${value};${delimiter}`);
+      return segments;
+    }, []);
+    return depth > 0 ? rules.join("") : rules;
+  };
+
+  const results = _stringify(styleRules);
+  // console.log('results:', results)
+  return isStylesOnly ? [results.join("")] : results;
 }
 
 /********** PARSING QUERY **********/
 
-/**
- *  starts with / ??   remove / at start and end
- *  spaces => \s+
- *  .$\^:{} => \\
- *  | split string and wrap in ()
- *
- *
- * @param {*} textQuery
- */
-export function createRegExp(textQuery) {
-  if (textQuery instanceof RegExp) return textQuery;
-  if (typeof textQuery !== "string" || textQuery?.length === 0) return null;
+export function parseQuery(textQuery) {
+  if (textQuery instanceof RegExp) {
+    return {
+      cssText: textQuery,
+    };
+  }
 
-  const source = textQuery
-    // .replaceAll(/^\s*\/|\/\s*$/g, "")
-    .replaceAll(/[+*()\[\].^$:{}\\]/g, "\\$&")
-    .replaceAll(/\s+/g, "\\s+");
-  return new RegExp(source);
+  if (isPlainObject(textQuery) || isFunction(textQuery)) return textQuery;
+
+  if (typeof textQuery !== "string" || textQuery.length === 0) return null;
+
+  const query = {};
+  const groups = textQuery.match(
+    /^(?<re>[^{}]*){(?<props>[^{}]+)}([^{}]*)$/
+  )?.groups;
+
+  query.cssText = (groups?.re ?? textQuery).trim();
+  if (query.cssText === "") delete query.cssText;
+
+  query.style = parseStyleRules(groups?.props);
+  if (!query.style) delete query.style;
+
+  return query;
 }
