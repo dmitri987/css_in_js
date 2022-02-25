@@ -7,6 +7,7 @@ const defaultConfig = {
   // changeInPlace: true, // true | false | 'deepClone' ??
 };
 
+const isObject = (obj) => obj instanceof Object;
 const hasKeys = (obj) =>
   obj instanceof Object && Object.keys(obj ?? {}).length > 0;
 const hasKey = (obj, key) => hasKeys(obj) && key in obj;
@@ -17,26 +18,28 @@ const assertMode = (mode) => {
     );
 };
 
-const assertObject = (obj, name) => {
-  if (!(obj instanceof Object))
-    throw new TypeError(`invalid '${name}' argument: should be an object`);
+const assertPropSet = (propSet) => {
+  if (!(propSet instanceof Object) || Object.keys(propSet).length === 0)
+    throw new TypeError(
+      `invalid 'propSet' argument: should be non empty object`
+    );
+};
+
+const assertTarget = (target) => {
+  if (!(target instanceof Object))
+    throw new TypeError(`invalid 'target' argument: should be object`);
 };
 
 const $$DELETED = Symbol("deleted");
 
 export function configureSetter(mode = "both") {
-  // const { mode } = {
-  //   ...defaultConfig,
-  //   ...config,
-  // };
-
   assertMode(mode);
 
   return function createSetter(propSet) {
-    assertObject(propSet, "propSet");
+    assertPropSet(propSet);
 
     const _set = (target, propSet, diff) => {
-      if (!propSet || !hasKeys(propSet) || !target) {
+      if (!propSet || !hasKeys(propSet) || !isObject(target)) {
         return [propSet, target];
       }
 
@@ -56,7 +59,7 @@ export function configureSetter(mode = "both") {
     };
 
     return function set(target) {
-      assertObject(target, "target");
+      assertTarget(target);
       const [_, diff] = _set(target, propSet, {});
       return diff;
     };
