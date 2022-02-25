@@ -9,6 +9,7 @@ import {
   stylesheets,
   rules,
   insert,
+  set,
   parseQuery,
   filter,
 } from "../src/css_in_js.mjs";
@@ -242,6 +243,37 @@ describe(`insert(rules: string | string[] | StyleRuleSet): CSSRUle[]`, () => {
 
   // should take RuleSet
   // should be tagged template
+});
+
+describe(`set(propSet): (target) => patch`, () => {
+  it(`should be used as tagged template: set\` width: 20rem;\``, () => {
+    const obj = {};
+    set`
+      width: 10rem;
+      color: red;
+    `(obj);
+
+    expect(obj).to.be.deep.eql({
+      style: {
+        width: "10rem",
+        color: "red",
+      },
+    });
+  });
+
+  it(`propSet can be plain object`, () => {
+    const obj = {};
+    // console.log("*******************");
+    set({
+      width: "10rem",
+      color: "red",
+    })(obj);
+
+    expect(obj).to.be.deep.eql({
+      width: "10rem",
+      color: "red",
+    });
+  });
 });
 
 /*******  parse  ********/

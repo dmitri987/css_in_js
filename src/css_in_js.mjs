@@ -1,5 +1,5 @@
 import { createFilter } from "./filter.js";
-
+import { createSetter } from "./set.js";
 // import cloneDeep from "lodash.clonedeep";
 
 /**
@@ -85,6 +85,20 @@ export const filter = withTaggedTemplate((query) => {
 
 // shortcut to use as inline tagged template:  f` div > #id { width: 100; }`
 export const f = filter;
+
+/************** SET ***********/
+export const set = withTaggedTemplate((propSet) => {
+  if (typeof propSet !== "string" && !isPlainObject(propSet))
+    throw new SyntaxError(
+      `'propSet' argument must be non empty string or plain object`
+    );
+
+  const props = isPlainObject(propSet)
+    ? propSet
+    : { style: parseStyleRules(propSet) };
+  // console.log(props);
+  return createSetter(props);
+});
 
 /************** STYLESHEETS FUNCTIONS ***********/
 // from here: https://github.com/ai/nanoid/blob/main/nanoid.js
