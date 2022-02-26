@@ -33,8 +33,6 @@ del(newRule)
 
 ## Main functions
 
----
-
 ### **insert**
 
 `insert(rules: string | RuleSet): CSSRule[]`
@@ -223,8 +221,6 @@ rules()  and  stylesheets().rules()  are equivalent
 ---
 
 ## Auxiliary Functions
-
----
 
 <h3 id="parse"><strong>parse</strong></h3>
 
