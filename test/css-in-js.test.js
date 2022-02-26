@@ -1,5 +1,3 @@
-// import { describe, it, fn } from "../node_modules/mocha/";
-// import chai from "../node_modules/chai/index.mjs";
 import {
   createStyleSheet,
   deleteStyleSheet,
@@ -10,7 +8,7 @@ import {
   del,
   set,
   filter,
-} from "../src/css_in_js.mjs";
+} from "../src/css-in-js.js";
 
 const { expect } = chai;
 
@@ -19,9 +17,6 @@ const clearDefaultStyleSheet = () => {
   for (let i = 0; i < ss.cssRules.length; i++) {
     ss.deleteRule(i);
   }
-  // [...stylesheets.default.cssRules].forEach((_, i) =>
-  //   stylesheets.default.deleteRule(i)
-  // );
 };
 
 describe(`createStyleSheet(): CSSStyleSheet`, () => {
@@ -145,8 +140,6 @@ describe(`rules(filter?: string | string[] | RegExp | Query)`, () => {
       "color",
       "green"
     );
-    // expect(css.rules()[0].style).to.have.property("color", "red");
-    // expect(stylesheets().rules())
 
     deleteStyleSheet(ss);
     deleteStyleSheet(ss2);
@@ -155,29 +148,14 @@ describe(`rules(filter?: string | string[] | RegExp | Query)`, () => {
   it(`when used on its own, should return rules from default stylesheet: 'rules()' is equivalent to 'stylesheets().rules()'`, () => {
     stylesheets.default.insertRule(".foo > #id { width: 10px; }", 0);
     expect(rules()[0].cssText).to.be.equal(".foo > #id { width: 10px; }");
-    // stylesheets.default.deleteRule(0);
     clearDefaultStyleSheet();
   });
-
-  // it(`array, returned by rules(), should have custom 'filter()' method, which should work as 'filter' function (see filter()), but scoped to the rules inside the array`, () => {
-  //   const ss = createStyleSheet();
-  //   ss.insertRule(`.foo { color: red; }`, 0);
-  //   ss.insertRule(`.bar { color: green; }`, 1);
-
-  //   const rules = stylesheets(ss).rules();
-  //   expect(rules.filter).to.be.not.equal(Array.prototype.filter);
-
-  //   const filteredRules = rules.filter('foo');
-  //   expect(filteredRules).to.be.lengthOf(1);
-
-  // })
 });
 
 /******** insert **********/
 describe(`insert(rules: string | string[] | StyleRuleSet): CSSRUle[]`, () => {
   it(`should return array of inserted rules, or empty array, if no rule was inserted`, () => {
     expect(insert()).to.be.an("array").and.to.be.lengthOf(0);
-    // expect(insert(42)).to.be.an("array").and.to.be.lengthOf(0);
     expect(insert({})).to.be.an("array").and.to.be.lengthOf(0);
     expect(insert("")).to.be.an("array").and.to.be.lengthOf(0);
 
@@ -193,9 +171,6 @@ describe(`insert(rules: string | string[] | StyleRuleSet): CSSRUle[]`, () => {
 
     clearDefaultStyleSheet();
   });
-
-  // should take RuleSet
-  // should be tagged template
 });
 
 describe(`set(propSet): (target) => patch`, () => {
@@ -246,7 +221,6 @@ describe(`filter(query: string|RegExp|Query|Function): (item: CSSRule|Element) =
          width: 100px;
       }`,
     };
-    // console.log("***********************");
     expect(f(fakeRule)).to.be.true;
   });
 
@@ -334,14 +308,6 @@ describe(`parse(textStyleRule?: string): RuleSet | StyleSet`, () => {
       parse`.foo { color: red; }`
     );
   });
-
-  // it(`should throw error if 'textStyleRule' is not a string or empty string`, () => {
-  //   expect(() => parse()).to.throw();
-  //   expect(() => parse("")).to.throw();
-  //   expect(() => parse(42)).to.throw();
-  //   // expect(() => parse({})).to.throw();
-  //   expect(() => parse(``)).to.throw();
-  // });
 
   it(`if textStyleRule is plain object, then parse() should return it`, () => {
     const ruleObj = {};

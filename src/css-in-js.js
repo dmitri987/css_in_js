@@ -1,28 +1,6 @@
 import { createFilter } from "./filter.js";
 import { createSetter } from "./set.js";
 import { parseStyleRules, parseQuery, stringify } from "./parse.js";
-// import cloneDeep from "lodash.clonedeep";
-
-/**
- * TODO:
- *  stylesheets
- *  rules
- *  insert
- *  set
- *  get
- *  filter
- *
- *  Stylesheets:
- *   insert ??
- *   rules
- *   default
- *
- *  Rules:
- *   filter
- *
- */
-
-// const isIterable = (obj) => typeof obj?.[Symbol.iterator] === "function";
 
 /********** HELPERS *********/
 const isPlainObject = (obj) => obj?.constructor === Object;
