@@ -24,7 +24,7 @@ module.exports = {
   // global: ['jQuery', '$'],
   // grep: /something/i, // also 'something', fgrep and grep are mutually exclusive
   // growl: false,
-  exclude: "test/css_in_js.test.js",
+  exclude: "test/css-in-js.test.js",
   // 'inline-diffs': false,
   // // invert: false, // needs to be used with grep or fgrep
   // jobs: 1,
