@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "type":"module",
+  "type": "module",
   "scripts": {
     "test": "mocha --watch --parallel"
   },
@@ -12,7 +12,7 @@
   "license": "ISC",
   "devDependencies": {
     "chai": "^4.3.6",
-    "mocha": "^9.2.1"
+    "mocha": "^9.2.2"
   },
   "dependencies": {
     "lodash.clonedeep": "^4.5.0"
